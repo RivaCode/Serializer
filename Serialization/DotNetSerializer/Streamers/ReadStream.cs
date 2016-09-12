@@ -14,23 +14,74 @@ namespace DotNetSerializer.Streamers
     {
         #region Nested
 
+        private class RecreationChainBuilder
+        {
+            private Queue<DescriptorRecreationChain> _chainQueue;
+
+            private RecreationChainBuilder(DescriptorRecreationChain initialChain)
+            {
+                _chainQueue = new Queue<DescriptorRecreationChain> ();
+                _chainQueue.Enqueue(initialChain);
+            }
+
+            public static RecreationChainBuilder StartWith(DescriptorRecreationChain initialChain) 
+                => new RecreationChainBuilder(initialChain);
+
+            public RecreationChainBuilder AddPrimitiveRecreation()
+            {
+                _chainQueue.Enqueue(new PrimitiveDescriptorRecreationChain());
+                return this;
+            }
+
+            public RecreationChainBuilder AddObjectRecreation()
+            {
+                _chainQueue.Enqueue(new ObjectDescriptorRecreationChain());
+                return this;
+            }
+
+            public RecreationChainBuilder AddNullRecreation()
+            {
+                _chainQueue.Enqueue(new NullDescriptorRecreationChain());
+                return this;
+            }
+
+            public RecreationChainBuilder AddCopyReferenceRecreation()
+            {
+                _chainQueue.Enqueue(new CopyReferenceDescriptorRecreationChain());
+                return this;
+            }
+
+            public DescriptorRecreationChain BuildChain()
+            {
+                var head = _chainQueue.Dequeue();
+                var current = head;
+                foreach (var recreationChain in _chainQueue)
+                {
+                    current.Next = recreationChain;
+                    current = current.Next;
+                }
+
+                return head;
+            }
+        }
+
         /// <summary>
         /// This class is responsible for building the <see cref="BaseDescriptor"/> using a chainging technics
         /// <remarks>
         /// <para>Design according to <c>Chain of Responsibility DP</c></para>
         /// </remarks>
         /// </summary>
-        private abstract class DescriptorBuilderChain
+        private abstract class DescriptorRecreationChain
         {
             #region Properties
 
             /// <summary>
-            /// Gets or sets the next <see cref="DescriptorBuilderChain"/>.
+            /// Gets or sets the next <see cref="DescriptorRecreationChain"/>.
             /// </summary>
             /// <value>
             /// The next.
             /// </value>
-            public DescriptorBuilderChain Next { get; set; }
+            public DescriptorRecreationChain Next { get; set; }
 
             /// <summary>
             /// Gets the handling <see cref="BaseDescriptor.Descriptor"/> this instance can handle.
@@ -50,7 +101,7 @@ namespace DotNetSerializer.Streamers
             /// <param name="element">The element.</param>
             /// <param name="chain">The source chain which we relay to build our object model</param>
             /// <returns></returns>
-            public BaseDescriptor Handle(XElement element, DescriptorBuilderChain chain)
+            public BaseDescriptor Handle(XElement element, DescriptorRecreationChain chain)
             {
                 BaseDescriptor result = null;
                 if (CanHandle(element))
@@ -75,7 +126,7 @@ namespace DotNetSerializer.Streamers
             /// <param name="element">The element.</param>
             /// <param name="chain">The chain.</param>
             /// <returns></returns>
-            protected abstract BaseDescriptor HandleInternal(XElement element, DescriptorBuilderChain chain);
+            protected abstract BaseDescriptor HandleInternal(XElement element, DescriptorRecreationChain chain);
 
             /// <summary>
             /// Gets the descriptors (of type <see cref="BaseDescriptor"/>) from the <param name="startElement"></param>.
@@ -86,7 +137,7 @@ namespace DotNetSerializer.Streamers
             /// <returns></returns>
             protected IEnumerable<BaseDescriptor> GetDescriptors(XElement startElement,
                 string collectionName,
-                DescriptorBuilderChain chain)
+                DescriptorRecreationChain chain)
             {
                 var query = startElement.Element(collectionName).Elements()
                     .Select(element => chain.Handle(element, chain));
@@ -116,7 +167,7 @@ namespace DotNetSerializer.Streamers
         /// <summary> 
         /// This class is responsible for building the <see cref="PrimitiveDescriptor"/>
         /// </summary>
-        private class PrimitiveDescriptorBuilderChain : DescriptorBuilderChain
+        private class PrimitiveDescriptorRecreationChain : DescriptorRecreationChain
         {
             #region Properties
 
@@ -141,7 +192,7 @@ namespace DotNetSerializer.Streamers
             /// <param name="element">The element.</param>
             /// <param name="chain">The chain.</param>
             /// <returns></returns>
-            protected override BaseDescriptor HandleInternal(XElement element, DescriptorBuilderChain chain)
+            protected override BaseDescriptor HandleInternal(XElement element, DescriptorRecreationChain chain)
             {
                 var nameAttr = element.Attribute("name");
                 var typeAttr = element.Attribute("type");
@@ -156,7 +207,7 @@ namespace DotNetSerializer.Streamers
         /// <summary> 
         /// This class is responsible for building the <see cref="ObjectDescriptor"/>
         /// </summary>
-        private class ObjectDescriptorBuilderChain : DescriptorBuilderChain
+        private class ObjectDescriptorRecreationChain : DescriptorRecreationChain
         {
             #region Properties
 
@@ -181,7 +232,7 @@ namespace DotNetSerializer.Streamers
             /// <param name="element">The element.</param>
             /// <param name="chain">The chain.</param>
             /// <returns></returns>
-            protected override BaseDescriptor HandleInternal(XElement element, DescriptorBuilderChain chain)
+            protected override BaseDescriptor HandleInternal(XElement element, DescriptorRecreationChain chain)
             {
                 var nameAttr = element.Attribute("name");
                 var typeAttr = element.Attribute("type");
@@ -210,7 +261,7 @@ namespace DotNetSerializer.Streamers
         /// <summary> 
         /// This class is responsible for building the <see cref="NullDescriptor"/>
         /// </summary>
-        private class NullDescriptorBuilderChain : DescriptorBuilderChain
+        private class NullDescriptorRecreationChain : DescriptorRecreationChain
         {
             #region Properties
 
@@ -235,7 +286,7 @@ namespace DotNetSerializer.Streamers
             /// <param name="element">The element.</param>
             /// <param name="chain">The chain.</param>
             /// <returns></returns>
-            protected override BaseDescriptor HandleInternal(XElement element, DescriptorBuilderChain chain)
+            protected override BaseDescriptor HandleInternal(XElement element, DescriptorRecreationChain chain)
             {
                 var nameAttr = element.Attribute("name");
                 return new NullDescriptor(nameAttr.Value);
@@ -246,7 +297,7 @@ namespace DotNetSerializer.Streamers
         /// <summary> 
         /// This class is responsible for building the <see cref="CopyReferenceDescriptor"/>
         /// </summary>
-        private class CopyReferenceDescriptorBuilderChain : DescriptorBuilderChain
+        private class CopyReferenceDescriptorRecreationChain : DescriptorRecreationChain
         {
             #region Properties
 
@@ -271,7 +322,7 @@ namespace DotNetSerializer.Streamers
             /// <param name="element">The element.</param>
             /// <param name="chain">The chain.</param>
             /// <returns></returns>
-            protected override BaseDescriptor HandleInternal(XElement element, DescriptorBuilderChain chain)
+            protected override BaseDescriptor HandleInternal(XElement element, DescriptorRecreationChain chain)
             {
                 var nameAttr = element.Attribute("name");
                 var typeAttr = element.Attribute("type");
@@ -296,25 +347,15 @@ namespace DotNetSerializer.Streamers
         {
             XElement root = XElement.Load(stream);
             ValidateStreamRoot(root);
-            
-            /*
-             * Here we are chaining our building sequence
-             */
-            DescriptorBuilderChain chainBuilder = new PrimitiveDescriptorBuilderChain //starting with primitive descriptor
-            {
-                Next = new ObjectDescriptorBuilderChain //if no success, then object descriptor
-                {
-                    Next = new NullDescriptorBuilderChain //if no success, then null descriptor
-                    {
-                        Next = new CopyReferenceDescriptorBuilderChain //if no success, then a similar reference
-                        {
-                            Next = null //if no success, then we stop
-                        }
-                    }
-                }
-            };
 
-            BaseDescriptor descriptor = chainBuilder.Handle(root.Elements().First(), chainBuilder);
+            DescriptorRecreationChain chainRecreation =
+                RecreationChainBuilder.StartWith(new PrimitiveDescriptorRecreationChain())
+                                    .AddObjectRecreation()
+                                    .AddNullRecreation()
+                                    .AddCopyReferenceRecreation()
+                                    .BuildChain();
+
+            BaseDescriptor descriptor = chainRecreation.Handle(root.Elements().First(), chainRecreation);
             return descriptor;
         }
 
@@ -338,4 +379,5 @@ namespace DotNetSerializer.Streamers
 
         #endregion
     }
+
 }
