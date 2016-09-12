@@ -1,11 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetSerializer", "DotNetSerializer\DotNetSerializer.csproj", "{30B67D21-9682-40A5-BB08-21C01067D8DB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SerializeTest", "SerializeTest\SerializeTest.csproj", "{C7043BD0-282A-49C2-88B6-11FFEBED65F4}"
+	ProjectSection(ProjectDependencies) = postProject
+		{30B67D21-9682-40A5-BB08-21C01067D8DB} = {30B67D21-9682-40A5-BB08-21C01067D8DB}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
